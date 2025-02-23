@@ -1,0 +1,53 @@
+---
+name: "[Action] Install dependencies"
+
+description: "Install dependencies using pnpm"
+
+inputs:
+  package_manager:
+    description: "Package manager to be used"
+    required: false
+    default: "pnpm"
+  node_version:
+    description: "NodeJS version to be used"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Validate package manager
+      if: ${{ !contains(fromJson('["pnpm", "npm"]'), inputs.package_manager) }}
+      shell: sh
+      run: |
+        echo "Invalid package manager. Please use 'pnpm' or 'npm'."
+        exit 1
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # INFO: Install pnpm and NodeJS
+    - name: Install pnpm
+      if: ${{ inputs.package_manager == 'pnpm' }}
+      uses: pnpm/action-setup@v4
+    - name: Use NodeJS
+      if: ${{ inputs.package_manager == 'pnpm' }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node_version }}
+        cache: ${{ inputs.package_manager }}
+    - name: Install dependencies using pnpm
+      if: ${{ inputs.package_manager == 'pnpm' }}
+      shell: sh
+      run: pnpm install --frozen-lockfile
+
+    # INFO: Install npm and NodeJS
+    - name: Use NodeJS
+      if: ${{ inputs.package_manager == 'npm' }}
+      uses: actions/setup-node@v4
+      with:
+        # INFO: Avoid to use the cache for npm,
+        # because it's not supported without `package-lock.json`
+        node-version: ${{ inputs.node_version }}
+    - name: Install dependencies using npm
+      if: ${{ inputs.package_manager == 'npm' }}
+      shell: sh
+      run: npm install
