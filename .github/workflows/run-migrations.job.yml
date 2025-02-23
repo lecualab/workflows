@@ -1,0 +1,34 @@
+name: "[Task] Run migrations"
+
+on:
+  workflow_call:
+    inputs:
+      stage:
+        type: string
+        description: "Stage to run migrations"
+        required: true
+      migration_command:
+        type: string
+        description: "Command to run migrations"
+        required: true
+
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+
+jobs:
+  run-migrations:
+    name: Run migrations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup project
+        uses: lecualab/workflows/.github/actions/install-deps@main
+      - name: Get environment variables
+        uses: Infisical/secrets-action@v1.0.8
+        with:
+          client-id: ${{ secrets.INFISICAL_MACHINE_IDENTITY_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_MACHINE_IDENTITY_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: ${{ inputs.stage }}
+      - name: Run migrations
+        run: ${{ inputs.migration_command }}
