@@ -1,0 +1,40 @@
+name: "[Check] Code quality"
+
+on:
+  workflow_call:
+    inputs:
+      type_check_command:
+        type: string
+        description: "Command to run type check"
+        required: false
+        default: "pnpm lint:types"
+      lint_command:
+        type: string
+        description: "Command to run lint"
+        required: false
+        default: "pnpm lint:all"
+      test_coverage_command:
+        type: string
+        description: "Command to run test"
+        required: false
+        default: "pnpm test:cov"
+
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+
+jobs:
+  code-quality-check:
+    name: Code quality check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup project
+        uses: lecualab/workflows/.github/actions/install-deps@main
+        with:
+          node_version: ${{ vars.NODE_VERSION }}
+      - name: Type check
+        run: ${{ inputs.type_check_command }}
+      - name: Lint
+        run: ${{ inputs.lint_command }}
+      - name: Test coverage
+        run: ${{ inputs.test_coverage_command }}
