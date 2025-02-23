@@ -1,0 +1,58 @@
+name: "[Deployment] Serverless"
+
+on:
+  workflow_call:
+    inputs:
+      stage:
+        type: string
+        description: "Stage to be deployed"
+        required: true
+      serverless_file_path:
+        type: string
+        description: "Path to the serverless file"
+        required: true
+      build_command:
+        type: string
+        description: "Command used to build the project"
+        required: false
+        default: "npm run build"
+      fetch_env_vars:
+        type: boolean
+        description: "Fetch environment variables from Infisical"
+        required: false
+        default: true
+
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+
+jobs:
+  deployment:
+    name: Deployment
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.stage }}
+    steps:
+      - name: Setup project
+        uses: lecualab/workflows/.github/actions/install-deps@main
+        with:
+          # ISSUE: Serverless with Pnpm doesn't allow to strip out the devDependencies
+          package_manager: "npm"
+          node_version: ${{ vars.NODE_VERSION }}
+      - name: Get environment variables
+        if: ${{ inputs.fetch_env_vars }}
+        uses: Infisical/secrets-action@v1.0.8
+        with:
+          client-id: ${{ secrets.INFISICAL_MACHINE_IDENTITY_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_MACHINE_IDENTITY_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: ${{ inputs.stage }}
+      - name: Build
+        run: ${{ inputs.build_command }}
+      - name: Copy serverless configuration
+        run: cp ${{ inputs.serverless_file_path }} serverless.yaml
+      - name: Deploy
+        run: npx serverless deploy --stage ${{ inputs.stage }}
+        env:
+          SERVERLESS_ACCESS_KEY: ${{ secrets.SERVERLESS_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
